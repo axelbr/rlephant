@@ -1,33 +1,52 @@
-
+import os
 from time import sleep
 import gym
 import racecar_gym
 
-from elephant.collector import DataCollector, Episode, DataReader
+from elephant.persistence import Episode, Transition, ReplayStorage
 
 env = gym.make('MultiAgentAustria-v0')
 
 done = False
 obs = env.reset()
 
-reader = DataReader('A.hdf5')
-episode = reader.episode(index=1)
 
-collectors = None
-#collectors = dict((agent, DataCollector(directory=agent, batch_size=5)) for agent in 'A,B,C,D'.split(','))
+os.remove('A.hdf5')
+os.remove('B.hdf5')
+os.remove('C.hdf5')
+os.remove('D.hdf5')
 
-for i in range(10):
+
+storages = dict((agent, ReplayStorage(filename=agent+'.hdf5', batch_size=3, max_steps=1000)) for agent in 'A,B,C,D'.split(','))
+
+
+for i in range(5):
     episode = dict((agent, Episode()) for agent in 'A,B,C,D'.split(','))
     env.reset()
-    done = True
+    done = False
     while not done:
         action = env.action_space.sample()
         obs, rewards, dones, states = env.step(action)
         done = any(dones.values())
         for agent in obs:
-            episode[agent].append((obs[agent], action[agent], rewards[agent], dones[agent], states[agent]))
+            transition = Transition(observation=obs[agent],
+                                    action=action[agent],
+                                    reward=rewards[agent],
+                                    done=dones[agent])
+
+            episode[agent].append(transition)
 
     for agent in obs:
-        collectors[agent].save_episode(episode[agent])
+        print(episode[agent].length)
+        storages[agent].save(episode[agent])
+
+for s in storages.values():
+    s.flush()
+
+
+for e in storages['A'][2:4]:
+    print(e.length)
+    for t in e[10:20]:
+        print(t)
 
 env.close()
