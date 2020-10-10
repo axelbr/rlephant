@@ -1,11 +1,15 @@
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, Union, Iterator
+from typing import Dict, Union, Iterator
 
 import numpy as np
 
 
 @dataclass
 class Transition:
+    """
+    A single transition in a MDP, consisting of observations, actions, reward and done flag.
+    It holds observations and actions as dictionaries.
+    """
     observation: Dict[str, np.ndarray]
     action: Dict[str, np.ndarray]
     reward: float
@@ -30,8 +34,13 @@ class Transition:
 
         return True
 
+
 @dataclass
 class Episode:
+    """
+    A single episode in an MDP. Observations and actions are stored as non-nested dictionaries. A key refers to a numpy
+    array of arbitrary dimension. The first dimension corresponds to the time dimension.
+    """
 
     observations: Dict[str, np.ndarray] = field(default_factory=lambda: {})
     actions: Dict[str, np.ndarray] = field(default_factory=lambda: {})
@@ -45,7 +54,10 @@ class Episode:
 
         action = {}
         for k, v in self.actions.items():
-            action[k] = v[index, :]
+            if len(v.shape) == 2 and v.shape[1] == 1:
+                action[k] = v[index, 0]
+            else:
+                action[k] = v[index, :]
 
         reward = self.rewards[index]
         done = self.done[index]
@@ -67,6 +79,15 @@ class Episode:
         return episode
 
     def __getitem__(self, item) -> Union[Transition, 'Episode']:
+        """
+        Access either a single transition at a particular timestep or slice and episode. If a single transition is
+        requested, the caller will receive an object of type 'Transition'. If a slice is requested, the caller will
+        receive a new episode, where the data (observations, actions, ...) is rearranged along the time axis, according
+        to the given slice.
+        :param item: either a single timestep (int) or a slice.
+        :return: Either a single transition or a new episode with rearranged time-axis.
+        """
+
         if type(item) == int:
             return self._get_item(item)
         elif type(item) == slice:
@@ -75,7 +96,11 @@ class Episode:
             raise IndexError
 
     def __iter__(self) -> Iterator[Transition]:
-       return iter([self._get_item(i) for i in range(self.length)])
+        """
+        Iterator over all transitions.
+        :return: Iterator of type Transition.
+        """
+        return iter([self._get_item(i) for i in range(self.length)])
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Episode):
@@ -103,8 +128,20 @@ class Episode:
     def length(self) -> int:
         return len(self.rewards)
 
+    def __len__(self):
+        return self.length
+
     def append(self, transition: Transition) -> None:
+        """
+        Append a single transition to the episode. The dimensions of existing entries must match, otherwise, an exception
+        will be thrown.
+        :param transition: A single transition object.
+        :return: None
+        """
+
         for k, v in transition.observation.items():
+            if np.isscalar(v):
+                v = np.array((v,))
             v = np.expand_dims(v, axis=0)
             if k in self.observations:
                 self.observations[k] = np.vstack((self.observations[k], v))
@@ -112,6 +149,8 @@ class Episode:
                 self.observations[k] = v
 
         for k, v in transition.action.items():
+            if np.isscalar(v):
+                v = np.array((v,))
             v = np.expand_dims(v, axis=0)
             if k in self.actions:
                 self.actions[k] = np.vstack((self.actions[k], v))

@@ -1,18 +1,25 @@
-from typing import List
+from typing import Iterable
 
 import h5py
 
-from elephant.entities import Episode
+from .entities import Episode
 
 
 class ReplayStorage:
 
     def __init__(self, filename: str, batch_size: int = None, max_steps: int = None):
+        """
+        Contstructor.
+        :param filename: H5 file to open. If no such file exists, a new one will be created.
+        :param batch_size: Number of episodes to keep in memory before writing out to file. If none provided, batch size
+        is 1.
+        :param max_steps: Maximum number of timesteps to save. If none provided, no limit is assumed.
+        """
         self._batch_size = batch_size if batch_size else 1
         self._max_steps = max_steps
         self._batch = []
         self._file = h5py.File(filename, mode='a')
-        self._episodes = 0
+        self._episodes = len(self._file)
         self._keys = ['obs', 'action']
 
     def _get_item(self, index: int):
@@ -54,9 +61,18 @@ class ReplayStorage:
         return episodes
 
     def __len__(self):
+        """
+        Number of episodes in this file.
+        :return:
+        """
         return len(self._file)
 
     def __getitem__(self, item):
+        """
+        Either access a single episode or a slice of episodes in the file.
+        :param item:
+        :return:
+        """
         if type(item) == int:
             return self._get_item(item)
         elif type(item) == slice:
@@ -64,16 +80,34 @@ class ReplayStorage:
         else:
             raise IndexError
 
+    def __iter__(self):
+        return iter(self[:])
+
     def save(self, episode: Episode) -> None:
+        """
+        Save a single episode. Note that it will be not persisted on disk, until the current batch is full or flush()
+        is called.
+        :param episode: A single episode.
+        :return:
+        """
         self._batch.append(episode)
         if len(self._batch) == self._batch_size:
             self.flush()
 
-    def save_batch(self, episodes: List[Episode]) -> None:
+    def save_batch(self, episodes: Iterable[Episode]) -> None:
+        """
+        Save multiple episodes at once.
+        :param episodes: An iterable of episodes.
+        :return:
+        """
         for e in episodes:
             self.save(e)
 
     def flush(self) -> None:
+        """
+        Write the current batch to disk and delete episodes from buffer.
+        :return:
+        """
         for i, e in enumerate(self._batch):
             self._save_episode(episode=e)
             self._episodes += 1
@@ -91,7 +125,6 @@ class ReplayStorage:
 
         episode_data.create_dataset(name='reward', data=episode.rewards[:limit], compression='gzip')
         episode_data.create_dataset(name='done', data=episode.done[:limit], compression='gzip')
-
 
     def _init_groups(self, episode_no: int):
         episode_group = self._file.create_group(str(episode_no))

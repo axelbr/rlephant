@@ -1,6 +1,6 @@
 import numpy as np
 
-from elephant import Transition, Episode
+from rlephant import Transition, Episode
 
 
 def make_transition(value: int = None, done: bool = None):

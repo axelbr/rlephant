@@ -1,8 +1,6 @@
 import unittest
 
-import numpy as np
-
-from elephant import Transition, Episode
+from rlephant import Episode
 from tests.util import make_transition
 
 
@@ -40,7 +38,6 @@ class TestEpisode(unittest.TestCase):
         for i, t in enumerate(episode):
             self.assertEqual(t, transitions[i])
 
-
     def test_slicing(self):
         episode = Episode()
         transitions = []
@@ -58,6 +55,7 @@ class TestEpisode(unittest.TestCase):
         self.assertEqual(transitions[::-1], [t for t in episode[::-1]])
         self.assertEqual(transitions[:-2], [t for t in episode[:-2]])
         self.assertEqual(transitions[-1:-2], [t for t in episode[-1:-2]])
+
 
 if __name__ == '__main__':
     unittest.main()
