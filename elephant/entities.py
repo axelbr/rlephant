@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, Union
+from typing import Dict, Iterable, Union, Iterator
 
 import numpy as np
 
@@ -54,29 +54,19 @@ class Episode:
                           reward=reward,
                           done=done)
 
-    def _get_slice(self, item) -> Iterable[Transition]:
-        start = item.start if item.start else 0
-        stop = item.stop if item.stop else self.length
-        step = item.step if item.step else 1
+    def _get_slice(self, item) -> 'Episode':
+        episode = Episode()
+        for k, v in self.observations.items():
+            episode.observations[k] = v[item]
 
-        if start < 0:
-            start = self.length + start
+        for k, v in self.actions.items():
+            episode.actions[k] = v[item]
 
-        if stop < 0:
-            stop = self.length + stop
+        episode.rewards = self.rewards[item]
+        episode.done = self.done[item]
+        return episode
 
-        if step < 0:
-            tmp = start
-            start = stop - 1
-            stop = tmp - 1
-
-        transitions = []
-        for i in range(start, stop, step):
-            t = self._get_item(i)
-            transitions.append(t)
-        return transitions
-
-    def __getitem__(self, item) -> Union[Transition, Iterable[Transition]]:
+    def __getitem__(self, item) -> Union[Transition, 'Episode']:
         if type(item) == int:
             return self._get_item(item)
         elif type(item) == slice:
@@ -84,14 +74,36 @@ class Episode:
         else:
             raise IndexError
 
-    def __iter__(self):
-       return iter(self[:])
+    def __iter__(self) -> Iterator[Transition]:
+       return iter([self._get_item(i) for i in range(self.length)])
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Episode):
+            return False
+
+        for k, v in self.observations.items():
+            comp = other.observations[k] == v
+            if not comp.all():
+                return False
+
+        for k, v in self.actions.items():
+            comp = other.actions[k] == v
+            if not comp.all():
+                return False
+
+        if not (other.rewards == self.rewards).all():
+            return False
+
+        if not (other.done == self.done).all():
+            return False
+
+        return True
 
     @property
     def length(self) -> int:
         return len(self.rewards)
 
-    def append(self, transition: Transition):
+    def append(self, transition: Transition) -> None:
         for k, v in transition.observation.items():
             v = np.expand_dims(v, axis=0)
             if k in self.observations:

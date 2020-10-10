@@ -1,3 +1,5 @@
+from typing import List
+
 import h5py
 
 from elephant.entities import Episode
@@ -6,39 +8,70 @@ from elephant.entities import Episode
 class ReplayStorage:
 
     def __init__(self, filename: str, batch_size: int = None, max_steps: int = None):
-        self._batch_size = batch_size
+        self._batch_size = batch_size if batch_size else 1
         self._max_steps = max_steps
         self._batch = []
-        self._file = h5py.File(filename)
+        self._file = h5py.File(filename, mode='a')
         self._episodes = 0
         self._keys = ['obs', 'action']
 
-    def __getitem__(self, item):
+    def _get_item(self, index: int):
+        index = index if index >= 0 else len(self._file) + index
+        episode_data = self._file[str(index)]
+        obs, action = {}, {}
+
+        for k in episode_data['obs']:
+            obs[k] = episode_data['obs'][k][:]
+
+        for k in episode_data['action']:
+            action[k] = episode_data['action'][k][:]
+
+        rewards = episode_data['reward'][:]
+        done = episode_data['done'][:]
+        return Episode(observations=obs, actions=action, rewards=rewards, done=done)
+
+    def _get_slice(self, item: slice):
         start = item.start if item.start else 0
         stop = item.stop if item.stop else len(self._file)
         step = item.step if item.step else 1
+
+        if start < 0:
+            start = len(self._file) + start
+
+        if stop < 0:
+            stop = len(self._file) + stop
+
+        if step < 0:
+            tmp = start
+            start = stop - 1
+            stop = tmp - 1
+
         episodes = []
         for i in range(start, stop, step):
-            episode_data = self._file[str(i)]
-            obs, action = {}, {}
-
-            for k in episode_data['obs']:
-                obs[k] = episode_data['obs'][k]
-
-            for k in episode_data['action']:
-                action[k] = episode_data['action'][k]
-
-            rewards = episode_data['reward']
-            done = episode_data['done']
-            episode = Episode(observations=obs, actions=action, rewards=rewards, done=done)
+            episode = self._get_item(i)
             episodes.append(episode)
 
         return episodes
+
+    def __len__(self):
+        return len(self._file)
+
+    def __getitem__(self, item):
+        if type(item) == int:
+            return self._get_item(item)
+        elif type(item) == slice:
+            return self._get_slice(item)
+        else:
+            raise IndexError
 
     def save(self, episode: Episode) -> None:
         self._batch.append(episode)
         if len(self._batch) == self._batch_size:
             self.flush()
+
+    def save_batch(self, episodes: List[Episode]) -> None:
+        for e in episodes:
+            self.save(e)
 
     def flush(self) -> None:
         for i, e in enumerate(self._batch):
