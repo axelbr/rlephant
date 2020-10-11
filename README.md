@@ -17,7 +17,7 @@ pip install rlepehant
 
 For the latest version in the repository, you can directly install it from there:
 ```bash
-pip install git+https://github.com/axelbr/elephant.git#egg=elephant
+pip install git+https://github.com/axelbr/elephant.git#egg=rlephant
 ```
 
 ## Usage
