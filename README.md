@@ -10,7 +10,7 @@ slicing along the time dimension.
 
 ## Installation
 
-Install latest stable release from [pypi](https://pypi.org):
+Install latest stable release from [pypi](https://pypi.org/project/rlephant/1.0.0/):
 ```bash
 pip install rlepehant
 ```
