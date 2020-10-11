@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, Union, Iterator
+from typing import Dict, Union, Iterator, Tuple
 
 import numpy as np
 
@@ -14,6 +14,16 @@ class Transition:
     action: Dict[str, np.ndarray]
     reward: float
     done: bool
+
+    @staticmethod
+    def from_tuple(transition: Tuple[Dict, Dict, float, bool]) -> 'Transition':
+        observation, action, reward, done = transition
+        return Transition(
+            observation=observation,
+            action=action,
+            reward=reward,
+            done=done
+        )
 
     def __eq__(self, other):
         if not isinstance(other, Transition):
