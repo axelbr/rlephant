@@ -59,3 +59,11 @@ last_episode = storage[-1]
 for transition in last_episode:
     print(transition)
 ```
+
+## Tools
+
+To print a summary of a collection, you can use the built in command line
+tool `summary`. It will print information such as the number of episodes, episode 
+stats etc. to the console.
+
+*Usage:* `python -m rlephant.summary <path_to_collection>`
