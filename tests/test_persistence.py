@@ -39,11 +39,11 @@ class TestReplayStorage(unittest.TestCase):
         self.assertEqual(10, len(storage))
         self.assertEqual(episodes[9], storage[-1])
 
-    def tearDown(self) -> None:
-        [os.remove(f) for f in glob('episodes/*')]
-        os.rmdir('episodes')
 
     def setUp(self) -> None:
+        if os.path.exists('episodes'):
+            [os.remove(f) for f in glob('episodes/*')]
+            os.rmdir('episodes')
         os.mkdir('episodes')
 
 
