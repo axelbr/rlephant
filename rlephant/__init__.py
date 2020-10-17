@@ -1,2 +1,1 @@
-from .entities import Episode, Transition
-from .persistence import ReplayStorage
+from .core import Episode, Transition, Dataset

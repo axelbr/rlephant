@@ -4,12 +4,12 @@ import sys
 
 import numpy as np
 
-from rlephant import ReplayStorage
+from rlephant import Dataset
 
 
 def main():
     file = sys.argv[1]
-    storage = ReplayStorage(filename=file)
+    storage = Dataset(filename=file)
 
     print(f'Collection: {file}')
     print(f'Episodes: {len(storage)}, Size: {os.stat(file).st_size / math.pow(1024, 2):.2f} MB')

@@ -1,13 +1,12 @@
 import os
-from typing import Iterable, Dict
+from typing import Iterable
 
 import h5py
-import numpy as np
 
 from .entities import Episode
 
 
-class ReplayStorage:
+class Dataset:
 
     def __init__(self, filename: str, batch_size: int = None, max_steps: int = None):
         """
