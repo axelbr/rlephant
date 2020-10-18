@@ -2,8 +2,10 @@ import os
 from typing import Iterable
 
 import h5py
+import numpy as np
 
-from .entities import Episode
+from .episodes import Episode
+from .transitions import TransitionBatch
 
 
 class Dataset:
@@ -28,7 +30,7 @@ class Dataset:
             with h5py.File(self._filename, mode='a') as file:
                 file.attrs['episode_count'] = 0
 
-    def _get_item(self, file: h5py.File, index: int):
+    def _get_item(self, file: h5py.File, index: int) -> Episode:
         index = index if index >= 0 else len(file) + index
         episode_data = file[str(index)]
         obs, action = {}, {}
@@ -43,7 +45,7 @@ class Dataset:
         done = episode_data['done'][:]
         return Episode(observations=obs, actions=action, rewards=rewards, done=done)
 
-    def _get_slice(self, file: h5py.File, item: slice):
+    def _get_slice(self, file: h5py.File, item: slice) -> Iterable[Episode]:
         start = item.start if item.start else 0
         stop = item.stop if item.stop else len(file)
         step = item.step if item.step else 1
@@ -119,6 +121,14 @@ class Dataset:
         for e in self._batch:
             self._save_episode(episode=e)
         self._batch.clear()
+
+    def sample_sequences(self, count: int, sequence_length: int) -> Iterable[TransitionBatch]:
+        episodes = list(filter(lambda e: e.length >= sequence_length, self))
+        assert len(episodes) > 0, 'At least one episode with length >= sequence length required'
+        for i in range(count):
+            episode = np.random.choice(episodes)
+            start = int(np.random.randint(0, len(episode) - sequence_length))
+            yield episode[start:start + sequence_length]
 
     def _save_episode(self, episode: Episode) -> None:
         with h5py.File(self._filename, mode='a') as file:

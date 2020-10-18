@@ -1,48 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Dict, Union, Iterator, Tuple
+from typing import Dict, Union, Iterator
 
 import numpy as np
 
-
-@dataclass
-class Transition:
-    """
-    A single transition in a MDP, consisting of observations, actions, reward and done flag.
-    It holds observations and actions as dictionaries.
-    """
-    observation: Dict[str, np.ndarray]
-    action: Dict[str, np.ndarray]
-    reward: float
-    done: bool
-
-    @staticmethod
-    def from_tuple(transition: Tuple[Dict, Dict, float, bool]) -> 'Transition':
-        observation, action, reward, done = transition
-        return Transition(
-            observation=observation,
-            action=action,
-            reward=reward,
-            done=done
-        )
-
-    def __eq__(self, other):
-        if not isinstance(other, Transition):
-            return False
-
-        if self.reward != other.reward or self.done != other.done:
-            return False
-
-        for k, v in self.observation.items():
-            comp = other.observation[k] == v
-            if not comp.all():
-                return False
-
-        for k, v in self.action.items():
-            comp = other.action[k] == v
-            if not comp.all():
-                return False
-
-        return True
+from .transitions import Transition, TransitionBatch
 
 
 @dataclass
@@ -76,19 +37,24 @@ class Episode:
                           reward=reward,
                           done=done)
 
-    def _get_slice(self, item) -> 'Episode':
-        episode = Episode()
+    def _get_slice(self, item) -> 'TransitionBatch':
+        obs = {}
+        actions = {}
+
         for k, v in self.observations.items():
-            episode.observations[k] = v[item]
+            obs[k] = v[item]
 
         for k, v in self.actions.items():
-            episode.actions[k] = v[item]
+            actions[k] = v[item]
 
-        episode.rewards = self.rewards[item]
-        episode.done = self.done[item]
-        return episode
+        batch = TransitionBatch()
+        batch.observations = obs
+        batch.actions = actions
+        batch.rewards = self.rewards[item]
+        batch.done = self.done[item]
+        return batch
 
-    def __getitem__(self, item) -> Union[Transition, 'Episode']:
+    def __getitem__(self, item) -> Union[Transition, 'TransitionBatch']:
         """
         Access either a single transition at a particular timestep or slice and episode. If a single transition is
         requested, the caller will receive an object of type 'Transition'. If a slice is requested, the caller will
@@ -110,7 +76,8 @@ class Episode:
         Iterator over all transitions.
         :return: Iterator of type Transition.
         """
-        return iter([self._get_item(i) for i in range(self.length)])
+        for i in range(self.length):
+            yield self._get_item(i)
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Episode):
@@ -141,13 +108,19 @@ class Episode:
     def __len__(self):
         return self.length
 
-    def append(self, transition: Transition) -> None:
+    def append(self, transition: Union[Transition, TransitionBatch]) -> None:
         """
         Append a single transition to the episode. The dimensions of existing entries must match, otherwise, an exception
         will be thrown.
         :param transition: A single transition object.
         :return: None
         """
+        if isinstance(transition, Transition):
+            self._append_transition(transition)
+        elif isinstance(transition, TransitionBatch):
+            self._append_batch(transition)
+
+    def _append_transition(self, transition: Transition):
 
         for k, v in transition.observation.items():
             if np.isscalar(v):
@@ -169,3 +142,16 @@ class Episode:
 
         self.rewards = np.append(self.rewards, transition.reward)
         self.done = np.append(self.done, transition.done)
+
+    def _append_batch(self, batch: TransitionBatch):
+        self.rewards = np.append(self.rewards, batch.rewards)
+        self.done = np.append(self.done, batch.done)
+        self._append_dict(self.observations, batch.observations)
+        self._append_dict(self.actions, batch.actions)
+
+    def _append_dict(self, member: Dict, item: Dict):
+        for k, v in item.items():
+            if k in member:
+                member[k] = np.vstack((member[k], v))
+            else:
+                member[k] = v

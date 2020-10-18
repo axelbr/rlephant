@@ -1,1 +1,1 @@
-from .core import Episode, Transition, Dataset
+from .core import Episode, Transition, Dataset, TransitionBatch

@@ -1,6 +1,6 @@
 import numpy as np
 
-from rlephant import Transition, Episode
+from rlephant import Transition, Episode, TransitionBatch
 
 
 def make_transition(value: int = None, done: bool = None):
@@ -16,6 +16,20 @@ def make_transition(value: int = None, done: bool = None):
             reward=np.random.uniform(-5, 5, size=(1,)),
             done=done if done is not None else np.random.choice([True, False]))
 
+
+def make_transition_batch(size: int) -> TransitionBatch:
+    batch = TransitionBatch()
+    batch.observations = {
+        'obs_a': np.random.uniform(0, 10, size=(size, 20, 10)),
+        'obs_b': np.random.uniform(-2, 2, size=(size, 2))
+    }
+    batch.actions = {
+        'action_a': np.random.uniform(0, 5, size=(size, 3))
+    }
+    batch.rewards = np.random.uniform(0, 2, size=(size,))
+    batch.done = np.full(shape=(size,), fill_value=False)
+    batch.done[-1] = True
+    return batch
 
 def make_episode(length: int):
     episode = Episode()
