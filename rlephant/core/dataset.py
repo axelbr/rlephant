@@ -126,7 +126,8 @@ class Dataset:
         episodes = list(filter(lambda e: e.length >= sequence_length, self))
         assert len(episodes) > 0, 'At least one episode with length >= sequence length required'
         for i in range(count):
-            episode = np.random.choice(episodes)
+            episode = np.random.randint(0, len(episodes))
+            episode = episodes[episode]
             start = int(np.random.randint(0, len(episode) - sequence_length))
             yield episode[start:start + sequence_length]
 
