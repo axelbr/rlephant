@@ -76,6 +76,10 @@ class Dataset:
         with h5py.File(self._filename, mode='r') as file:
             return file.attrs['episode_count']
 
+    @property
+    def transition_count(self) -> int:
+        return sum(len(e) for e in self)
+
     def __getitem__(self, item):
         """
         Either access a single episode or a slice of episodes in the file.
@@ -121,6 +125,36 @@ class Dataset:
         for e in self._batch:
             self._save_episode(episode=e)
         self._batch.clear()
+
+    def sample_sequence_batch(self, count: int, sequence_length: int) -> TransitionBatch:
+        episodes = list(filter(lambda e: e.length > sequence_length, self))
+        assert len(episodes) > 0, 'At least one episode with length >= sequence length required'
+        batch = None
+        for i in range(count):
+            episode = np.random.randint(0, len(episodes))
+            episode = episodes[episode]
+            start = int(np.random.randint(0, len(episode) - sequence_length))
+            sampled = episode[start:start + sequence_length]
+            if batch is None:
+                batch = sampled
+                for k in batch.observations:
+                    batch.observations[k] = np.expand_dims(batch.observations[k], axis=0)
+                for k in batch.actions:
+                    batch.actions[k] = np.expand_dims(batch.actions[k], axis=0)
+                batch.rewards = np.expand_dims(batch.rewards, axis=0)
+                batch.done = np.expand_dims(batch.done, axis=0)
+            else:
+                for k in batch.observations:
+                    data = np.expand_dims(sampled.observations[k], axis=0)
+                    batch.observations[k] = np.vstack((batch.observations[k], data))
+                for k in batch.actions:
+                    data = np.expand_dims(sampled.actions[k], axis=0)
+                    batch.actions[k] = np.vstack((batch.actions[k], data))
+
+                batch.rewards = np.vstack((batch.rewards, np.expand_dims(sampled.rewards, axis=0)))
+                batch.done = np.vstack((batch.done, np.expand_dims(sampled.done, axis=0)))
+
+        return batch
 
     def sample_sequences(self, count: int, sequence_length: int) -> Iterable[TransitionBatch]:
         episodes = list(filter(lambda e: e.length >= sequence_length, self))
